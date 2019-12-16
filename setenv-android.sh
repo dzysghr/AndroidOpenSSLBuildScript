@@ -21,8 +21,10 @@ function load_ndk_17c {
   export ANDROID_NDK_ROOT=/Users/dengziyue/Library/Android/ndk/android-ndk-r17c
 }
 
-# ndk12 for 1.0.1 
+# ndk12 for 1.0.1
 load_ndk_12b
+# load_ndk_17c
+
 
 if [[ ! -d $ANDROID_NDK_ROOT ]];then
     echo "Please edit this script to config ANDROID_NDK_ROOT"
@@ -221,9 +223,10 @@ fi
 # https://android.googlesource.com/platform/ndk/+/ics-mr0/docs/STANDALONE-TOOLCHAIN.html
 export ANDROID_SYSROOT="$ANDROID_NDK_ROOT/platforms/$_ANDROID_API/$_ANDROID_ARCH"
 export SYSROOT="$ANDROID_SYSROOT"
-export NDK_SYSROOT="$ANDROID_SYSROOT"
+export NDK_SYSROOT="$ANDROID_NDK_ROOT/sysroot/usr"
 export ANDROID_NDK_SYSROOT="$ANDROID_SYSROOT"
 export ANDROID_API="$_ANDROID_API"
+export CROSS_SYSROOT="$ANDROID_SYSROOT"
 
 # Error checking
 if [ -z "$ANDROID_SYSROOT" ] || [ ! -d "$ANDROID_SYSROOT" ]; then
@@ -250,6 +253,7 @@ if [ ! -z "$VERBOSE" ] && [ "$VERBOSE" != "0" ]; then
   echo "FIPS_SIG: $FIPS_SIG"
   echo "CROSS_COMPILE: $CROSS_COMPILE"
   echo "ANDROID_DEV: $ANDROID_DEV"
+  echo "NDK_SYSROOT:" $NDK_SYSROOT
 fi
 
 
@@ -257,11 +261,13 @@ if [[ $1 != "build"  ]];then
   exit 0
 fi
 
-CURRENT_DIR=$(cd `dirname $0`; pwd)
-OPENSSL_INSTALL_DIR=$CURRENT_DIR/openssl_$ANDROID_API
-rm -rf $OPENSSL_INSTALL_DIR
-mkdir $OPENSSL_INSTALL_DIR
 
+function initInstallDir() {
+    CURRENT_DIR=$(cd `dirname $0`; pwd)
+    OPENSSL_INSTALL_DIR=$CURRENT_DIR/openssl_$ANDROID_API
+    rm -rf $OPENSSL_INSTALL_DIR
+    mkdir $OPENSSL_INSTALL_DIR
+}
 
 # NOTE:
 # 1. make 1.1.1 with ndk17
@@ -269,7 +275,8 @@ mkdir $OPENSSL_INSTALL_DIR
 # to $ANDROID_TOOLCHAIN/../arm-linux-androideabi/lib/
 # 3. add --sysroot=$ANDROID_SYSROOT to ./Configure
 function buildOpenSSL_1_1_1d() {
-    cd openssl-1.1.1d
+    initInstallDir
+    cd openssl-1.1.0l
     export ANDROID_NDK_HOME=$ANDROID_NDK_ROOT
     export PATH=$PATH:$ANDROID_TOOLCHAIN
     # ./Configure android-arm no-hw no-comp no-ssl3 --openssldir=/usr/local/ssl/$ANDROID_API --sysroot=$ANDROID_SYSROOT -D__ANDROID_API__=19
@@ -280,12 +287,14 @@ function buildOpenSSL_1_1_1d() {
 
 # NOTE:
 # 1. should make 1.0.1t with NDK12 
-function buildOpenSSL_1_0_2t() {
-    if [[ ! -d openssl-1.0.2t ]];then
-        wget https://www.openssl.org/source/openssl-1.0.2t.tar.gz
-        tar -xzvf openssl-1.0.2t.tar.gz
+function buildOpenSSL() {
+    ssl_version=$1
+    if [[ ! -d openssl-${ssl_version} ]];then
+        wget https://www.openssl.org/source/openssl-${ssl_version}.tar.gz
+        tar -xzvf openssl-${ssl_version}.tar.gz
     fi
-    cd openssl-1.0.2t
+    initInstallDir
+    cd openssl-${ssl_version}
     make distclean
     perl -pi -e 's/install: all install_docs install_sw/install: install_docs install_sw/g' Makefile.org
     ./config shared no-ssl3 no-comp no-hw --openssldir=$OPENSSL_INSTALL_DIR
@@ -294,5 +303,4 @@ function buildOpenSSL_1_0_2t() {
     sudo -E make install CC=$ANDROID_TOOLCHAIN/arm-linux-androideabi-gcc RANLIB=$ANDROID_TOOLCHAIN/arm-linux-androideabi-ranlib
 }
 
-buildOpenSSL_1_0_2t
-# buildOpenSSL_1_1_1d
+buildOpenSSL '1.0.2'
