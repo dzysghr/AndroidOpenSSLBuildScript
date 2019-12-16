@@ -24,7 +24,7 @@ function load_ndk_17c {
 # ndk12 for 1.0.1 
 load_ndk_12b
 
-if [[ ! -d ANDROID_NDK_ROOT ]];then
+if [[ ! -d $ANDROID_NDK_ROOT ]];then
     echo "Please edit this script to config ANDROID_NDK_ROOT"
     exit 1
 fi
